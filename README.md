@@ -1,1 +1,221 @@
 # quiz-system-1
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>School LMS Quiz</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #eef2f7;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: #fff;
+      padding: 25px;
+      width: 420px;
+      margin: auto;
+      border-radius: 12px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.1);
+    }
+
+    h1 { color: #2c3e50; }
+
+    button {
+      width: 85%;
+      padding: 10px;
+      margin: 6px;
+      border: none;
+      background: #3498db;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover { background: #2980b9; }
+
+    input {
+      padding: 10px;
+      width: 80%;
+      margin-bottom: 10px;
+    }
+
+    #timer {
+      color: red;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    #leaderboard {
+      margin-top: 20px;
+      text-align: left;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>📘 School LMS Quiz</h1>
+
+  <!-- START -->
+  <div id="startBox">
+    <input type="text" id="studentName" placeholder="Enter your name">
+    <br>
+    <button onclick="startQuiz()">Start Quiz</button>
+    <button onclick="loadLeaderboard()">View Leaderboard</button>
+  </div>
+
+  <!-- QUIZ -->
+  <div id="quizBox" style="display:none;">
+    <h2 id="question"></h2>
+    <div id="options"></div>
+    <h3 id="timer"></h3>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="leaderboard"></div>
+
+</div>
+
+<script>
+
+let quiz = [];
+let current = 0;
+let score = 0;
+let timeLeft = 30;
+let timer;
+let studentName = "";
+
+// 🔗 PASTE YOUR GOOGLE SCRIPT URL HERE
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyxQCJfxLkcqSVEsSJ5VchiI85eOyEKMncD6l-SFTjSk6Q6y3DqFT-LF9aQpcRjFkVe/exec";
+
+// 🚫 Anti-Cheat
+window.onbeforeunload = function() {
+  return "Are you sure? Your quiz will be submitted!";
+};
+
+// START QUIZ
+function startQuiz() {
+  studentName = document.getElementById("studentName").value;
+
+  if (studentName === "") {
+    alert("Enter your name first");
+    return;
+  }
+
+  document.getElementById("startBox").style.display = "none";
+  document.getElementById("quizBox").style.display = "block";
+
+  fetch(SCRIPT_URL)
+    .then(res => res.json())
+    .then(data => {
+      quiz = shuffle(data);
+      loadQuestion();
+    });
+}
+
+// SHUFFLE QUESTIONS
+function shuffle(array) {
+  return array.sort(() => Math.random() - 0.5);
+}
+
+// LOAD QUESTION
+function loadQuestion() {
+  if (current >= quiz.length) {
+    endQuiz();
+    return;
+  }
+
+  const q = quiz[current];
+  document.getElementById("question").innerText = q.q;
+
+  let optionsHTML = "";
+  q.options.forEach((opt, i) => {
+    optionsHTML += `<button onclick="checkAnswer(${i})">${opt}</button>`;
+  });
+
+  document.getElementById("options").innerHTML = optionsHTML;
+
+  startTimer();
+}
+
+// TIMER
+function startTimer() {
+  timeLeft = 30;
+
+  document.getElementById("timer").innerText =
+    "⏳ Time Left: " + timeLeft + " seconds";
+
+  timer = setInterval(() => {
+    timeLeft--;
+
+    document.getElementById("timer").innerText =
+      "⏳ Time Left: " + timeLeft + " seconds";
+
+    if (timeLeft <= 0) {
+      clearInterval(timer);
+      current++;
+      loadQuestion();
+    }
+  }, 1000);
+}
+
+// CHECK ANSWER
+function checkAnswer(selected) {
+  clearInterval(timer);
+
+  if (selected === quiz[current].answer) {
+    score++;
+  }
+
+  current++;
+  loadQuestion();
+}
+
+// END QUIZ
+function endQuiz() {
+
+  document.getElementById("quizBox").style.display = "none";
+
+  document.querySelector(".container").innerHTML +=
+    `<h2>✅ ${studentName}, Score: ${score}/${quiz.length}</h2>`;
+
+  // SEND RESULT
+  fetch(SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      name: studentName,
+      score: score,
+      total: quiz.length
+    })
+  });
+}
+
+// 🏆 LOAD LEADERBOARD
+function loadLeaderboard() {
+
+  fetch(SCRIPT_URL + "?leaderboard=true")
+    .then(res => res.json())
+    .then(data => {
+
+      let html = "<h3>🏆 Leaderboard</h3>";
+
+      data.sort((a,b) => b.score - a.score);
+
+      data.slice(0,10).forEach((row, i) => {
+        html += `<p>${i+1}. ${row.name} - ${row.score}/${row.total}</p>`;
+      });
+
+      document.getElementById("leaderboard").innerHTML = html;
+    });
+}
+
+</script>
+
+</body>
+</html>
