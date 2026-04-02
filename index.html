@@ -68,6 +68,15 @@
     <button onclick="loadLeaderboard()">View Leaderboard</button>
   </div>
 
+  <hr>
+<h3>👨‍🏫 Teacher Panel</h3>
+
+<input type="text" id="teacherClass" placeholder="Enter Class">
+<input type="text" id="teacherCode" placeholder="Enter Teacher Code">
+<button onclick="viewTeacherResults()">View Results</button>
+
+<div id="teacherResults"></div>
+
   <!-- QUIZ -->
   <div id="quizBox" style="display:none;">
     <h2 id="question"></h2>
@@ -213,6 +222,29 @@ function loadLeaderboard() {
     });
 }
 
+  function viewTeacherResults() {
+
+  let cls = document.getElementById("teacherClass").value;
+  let code = document.getElementById("teacherCode").value;
+
+  fetch(SCRIPT_URL + "?teacherView=true&class=" + cls + "&teacherCode=" + code)
+    .then(res => res.json())
+    .then(data => {
+
+      if (data.error) {
+        alert("Access Denied!");
+        return;
+      }
+
+      let html = "<h3>Results</h3>";
+
+      data.forEach(r => {
+        html += `<p>${r.name} (${r.studentID}) - ${r.score}/${r.total}</p>`;
+      });
+
+      document.getElementById("teacherResults").innerHTML = html;
+    });
+}
 </script>
 
 </body>
