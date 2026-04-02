@@ -2,41 +2,49 @@
 <html>
 <head>
 <title>School LMS</title>
+
 <style>
-body{font-family:Arial;background:#eef2f7;text-align:center}
-.container{background:#fff;padding:20px;width:420px;margin:auto;border-radius:10px}
-button{padding:10px;margin:5px;width:80%;background:#3498db;color:#fff;border:none}
-input,select{padding:10px;margin:5px;width:80%}
-#timer{color:red}
+body {font-family: Arial; background:#eef2f7; text-align:center;}
+.container {background:#fff; padding:20px; width:420px; margin:auto; border-radius:10px;}
+button {padding:10px; margin:5px; width:80%; background:#3498db; color:#fff; border:none;}
+input, select {padding:10px; margin:5px; width:80%;}
+#timer {color:red; font-weight:bold;}
 </style>
+
 </head>
 
 <body>
+
 <div class="container">
 
 <h2>📘 LMS System</h2>
 
-<!-- STUDENT -->
-<div id="student">
+<!-- STUDENT PANEL -->
+<div id="studentBox">
 <h3>Student Panel</h3>
-<input id="sname" placeholder="Name">
-<input id="sid" placeholder="Roll No">
-<select id="teacherSelect"></select>
+<input id="sname" placeholder="Name"><br>
+<input id="sid" placeholder="Roll No"><br>
+
+<select id="teacherSelect">
+<option value="">Select Class</option>
+</select><br>
+
 <button onclick="startQuiz()">Start Quiz</button>
 </div>
 
 <!-- QUIZ -->
-<div id="quiz" style="display:none">
+<div id="quizBox" style="display:none">
 <h3 id="q"></h3>
 <div id="opts"></div>
 <h4 id="timer"></h4>
 </div>
 
-<!-- TEACHER -->
 <hr>
+
+<!-- TEACHER PANEL -->
 <h3>Teacher Panel</h3>
-<input id="tid" placeholder="Teacher ID">
-<input id="tpass" placeholder="Password">
+<input id="tid" placeholder="Teacher ID"><br>
+<input id="tpass" placeholder="Password"><br>
 <button onclick="login()">Login</button>
 
 <div id="dash"></div>
@@ -44,110 +52,224 @@ input,select{padding:10px;margin:5px;width:80%}
 </div>
 
 <script>
-const URL="https://script.google.com/macros/s/AKfycbyxQCJfxLkcqSVEsSJ5VchiI85eOyEKMncD6l-SFTjSk6Q6y3DqFT-LF9aQpcRjFkVe/exec";
 
-let quiz=[],i=0,score=0,timer,t=30,teacherID="";
+const URL = "https://script.google.com/macros/s/AKfycbyxQCJfxLkcqSVEsSJ5VchiI85eOyEKMncD6l-SFTjSk6Q6y3DqFT-LF9aQpcRjFkVe/exec"; // 🔴 PUT YOUR APPS SCRIPT URL HERE
 
-// load teachers
-fetch(URL+"?teachers=true")
-.then(r=>r.json())
-.then(d=>{
-d.forEach(x=>{
-teacherSelect.innerHTML+=`<option value="${x.id}">${x.name}</option>`
-})
-})
+let quiz = [], i = 0, score = 0;
+let timer, t = 30;
+let teacherID = "", studentName = "", studentID = "";
 
-// student
-function startQuiz(){
-let name=sname.value,sidv=sid.value,tid=teacherSelect.value;
-
-fetch(URL+`?check=true&teacher=${tid}&sid=${sidv}`)
-.then(r=>r.json())
-.then(d=>{
-if(d.done){alert("Already attempted");return;}
-
-teacherID=tid;
-studentName=name;
-studentID=sidv;
-
-fetch(URL+`?teacher=${tid}`)
-.then(r=>r.json())
-.then(q=>{quiz=q;next();});
+// 🔹 LOAD TEACHERS DROPDOWN
+fetch(URL + "?teachers=true")
+.then(res => res.json())
+.then(data => {
+  let select = document.getElementById("teacherSelect");
+  data.forEach(t => {
+    let opt = document.createElement("option");
+    opt.value = t.id;
+    opt.text = t.name;
+    select.appendChild(opt);
+  });
 });
+
+// ================= STUDENT =================
+
+function startQuiz() {
+
+  let name = document.getElementById("sname").value;
+  let sidVal = document.getElementById("sid").value;
+  let tidVal = document.getElementById("teacherSelect").value;
+
+  if(name === "" || sidVal === "" || tidVal === ""){
+    alert("Fill all fields");
+    return;
+  }
+
+  fetch(URL + "?check=true&teacher=" + tidVal + "&sid=" + sidVal)
+  .then(res => res.json())
+  .then(data => {
+
+    if(data.done){
+      alert("You already attempted this quiz");
+      return;
+    }
+
+    teacherID = tidVal;
+    studentName = name;
+    studentID = sidVal;
+
+    document.getElementById("studentBox").style.display = "none";
+    document.getElementById("quizBox").style.display = "block";
+
+    fetch(URL + "?teacher=" + teacherID)
+    .then(res => res.json())
+    .then(q => {
+      quiz = q;
+      i = 0;
+      score = 0;
+      nextQuestion();
+    });
+
+  });
 }
 
-function next(){
-if(i>=quiz.length){end();return;}
-q.innerText=quiz[i].q;
-opts.innerHTML="";
-quiz[i].options.forEach((o,x)=>{
-opts.innerHTML+=`<button onclick="ans(${x})">${o}</button>`;
-});
-time();
+// LOAD QUESTION
+function nextQuestion() {
+
+  if(i >= quiz.length){
+    endQuiz();
+    return;
+  }
+
+  document.getElementById("q").innerText = quiz[i].q;
+
+  let optDiv = document.getElementById("opts");
+  optDiv.innerHTML = "";
+
+  quiz[i].options.forEach((opt, index) => {
+    let btn = document.createElement("button");
+    btn.innerText = opt;
+    btn.onclick = () => answer(index);
+    optDiv.appendChild(btn);
+  });
+
+  startTimer();
 }
 
-function time(){
-t=30;
-timer=setInterval(()=>{
-timerEl.innerText="Time: "+t;
-t--;
-if(t<0){clearInterval(timer);i++;next();}
-},1000);
+// TIMER
+function startTimer(){
+  t = 30;
+  let timerEl = document.getElementById("timer");
+
+  timerEl.innerText = "Time Left: " + t;
+
+  timer = setInterval(() => {
+    t--;
+    timerEl.innerText = "Time Left: " + t;
+
+    if(t < 0){
+      clearInterval(timer);
+      i++;
+      nextQuestion();
+    }
+  }, 1000);
 }
 
-function ans(x){
-clearInterval(timer);
-if(x==quiz[i].answer)score++;
-i++;next();
+// ANSWER
+function answer(choice){
+  clearInterval(timer);
+
+  if(choice === quiz[i].answer){
+    score++;
+  }
+
+  i++;
+  nextQuestion();
 }
 
-function end(){
-quizBox.style.display="none";
-fetch(URL,{
-method:"POST",
-body:JSON.stringify({action:"result",teacher:teacherID,name:studentName,sid:studentID,score:score,total:quiz.length})
-});
-alert("Submitted");
+// END QUIZ
+function endQuiz(){
+
+  document.getElementById("quizBox").innerHTML =
+    `<h2>Submitted</h2><h3>${studentName}, Score: ${score}/${quiz.length}</h3>`;
+
+  fetch(URL,{
+    method:"POST",
+    body: JSON.stringify({
+      action:"result",
+      teacher: teacherID,
+      name: studentName,
+      sid: studentID,
+      score: score,
+      total: quiz.length
+    })
+  });
 }
 
-// teacher
+// ================= TEACHER =================
+
 function login(){
-fetch(URL+`?login=true&id=${tid.value}&pass=${tpass.value}`)
-.then(r=>r.json())
-.then(d=>{
-if(d.success){teacherID=tid.value;panel();}
-else alert("Wrong login");
-});
+
+  let id = document.getElementById("tid").value;
+  let pass = document.getElementById("tpass").value;
+
+  if(id === "" || pass === ""){
+    alert("Enter login details");
+    return;
+  }
+
+  fetch(URL + "?login=true&id=" + id + "&pass=" + pass)
+  .then(res => res.json())
+  .then(data => {
+
+    if(data.success){
+      teacherID = id;
+      loadDashboard();
+    } else {
+      alert("Wrong login");
+    }
+
+  });
 }
 
-function panel(){
-dash.innerHTML=`
-<h4>Add Question</h4>
-<input id="q1"><br>
-<input id="o1"><input id="o2"><input id="o3"><input id="o4"><br>
-<input id="ans"><button onclick="add()">Add</button>
-<h4>Results</h4><div id="res"></div>`;
-loadRes();
+// DASHBOARD
+function loadDashboard(){
+
+  document.getElementById("dash").innerHTML = `
+    <h4>Add Question</h4>
+    <input id="q1" placeholder="Question"><br>
+    <input id="o1" placeholder="Option1">
+    <input id="o2" placeholder="Option2">
+    <input id="o3" placeholder="Option3">
+    <input id="o4" placeholder="Option4"><br>
+    <input id="ans" placeholder="Correct (1-4)">
+    <button onclick="addQ()">Add</button>
+
+    <h4>Results</h4>
+    <div id="res"></div>
+  `;
+
+  loadResults();
 }
 
-function add(){
-fetch(URL,{
-method:"POST",
-body:JSON.stringify({action:"add",teacher:teacherID,q:q1.value,o1:o1.value,o2:o2.value,o3:o3.value,o4:o4.value,ans:ans.value})
-});
+// ADD QUESTION
+function addQ(){
+
+  fetch(URL,{
+    method:"POST",
+    body: JSON.stringify({
+      action:"add",
+      teacher: teacherID,
+      q: document.getElementById("q1").value,
+      o1: document.getElementById("o1").value,
+      o2: document.getElementById("o2").value,
+      o3: document.getElementById("o3").value,
+      o4: document.getElementById("o4").value,
+      ans: document.getElementById("ans").value
+    })
+  }).then(() => {
+    alert("Question Added");
+  });
 }
 
-function loadRes(){
-fetch(URL+`?results=true&teacher=${teacherID}`)
-.then(r=>r.json())
-.then(d=>{
-let h="";
-d.forEach(x=>{
-h+=`<p>${x.name} (${x.id}) - ${x.score}/${x.total}</p>`;
-});
-res.innerHTML=h;
-});
+// LOAD RESULTS
+function loadResults(){
+
+  fetch(URL + "?results=true&teacher=" + teacherID)
+  .then(res => res.json())
+  .then(data => {
+
+    let html = "";
+
+    data.forEach(r => {
+      html += `<p>${r.name} (${r.id}) - ${r.score}/${r.total}</p>`;
+    });
+
+    document.getElementById("res").innerHTML = html;
+  });
 }
+
 </script>
+
 </body>
 </html>
