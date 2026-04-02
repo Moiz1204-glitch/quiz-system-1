@@ -1,251 +1,153 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>School LMS Quiz</title>
-
-  <style>
-    body {
-      font-family: Arial;
-      background: #eef2f7;
-      text-align: center;
-      padding: 20px;
-    }
-
-    .container {
-      background: #fff;
-      padding: 25px;
-      width: 420px;
-      margin: auto;
-      border-radius: 12px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.1);
-    }
-
-    h1 { color: #2c3e50; }
-
-    button {
-      width: 85%;
-      padding: 10px;
-      margin: 6px;
-      border: none;
-      background: #3498db;
-      color: white;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    button:hover { background: #2980b9; }
-
-    input {
-      padding: 10px;
-      width: 80%;
-      margin-bottom: 10px;
-    }
-
-    #timer {
-      color: red;
-      font-size: 18px;
-      font-weight: bold;
-    }
-
-    #leaderboard {
-      margin-top: 20px;
-      text-align: left;
-    }
-  </style>
+<title>School LMS</title>
+<style>
+body{font-family:Arial;background:#eef2f7;text-align:center}
+.container{background:#fff;padding:20px;width:420px;margin:auto;border-radius:10px}
+button{padding:10px;margin:5px;width:80%;background:#3498db;color:#fff;border:none}
+input,select{padding:10px;margin:5px;width:80%}
+#timer{color:red}
+</style>
 </head>
 
 <body>
-
 <div class="container">
 
-  <h1>📘 School LMS Quiz</h1>
+<h2>📘 LMS System</h2>
 
-  <!-- START -->
-  <div id="startBox">
-    <input type="text" id="studentName" placeholder="Enter your name">
-    <br>
-    <button onclick="startQuiz()">Start Quiz</button>
-    <button onclick="loadLeaderboard()">View Leaderboard</button>
-  </div>
+<!-- STUDENT -->
+<div id="student">
+<h3>Student Panel</h3>
+<input id="sname" placeholder="Name">
+<input id="sid" placeholder="Roll No">
+<select id="teacherSelect"></select>
+<button onclick="startQuiz()">Start Quiz</button>
+</div>
 
-  <hr>
-<h3>👨‍🏫 Teacher Panel</h3>
+<!-- QUIZ -->
+<div id="quiz" style="display:none">
+<h3 id="q"></h3>
+<div id="opts"></div>
+<h4 id="timer"></h4>
+</div>
 
-<input type="text" id="teacherClass" placeholder="Enter Class">
-<input type="text" id="teacherCode" placeholder="Enter Teacher Code">
-<button onclick="viewTeacherResults()">View Results</button>
+<!-- TEACHER -->
+<hr>
+<h3>Teacher Panel</h3>
+<input id="tid" placeholder="Teacher ID">
+<input id="tpass" placeholder="Password">
+<button onclick="login()">Login</button>
 
-<div id="teacherResults"></div>
-
-  <!-- QUIZ -->
-  <div id="quizBox" style="display:none;">
-    <h2 id="question"></h2>
-    <div id="options"></div>
-    <h3 id="timer"></h3>
-  </div>
-
-  <!-- LEADERBOARD -->
-  <div id="leaderboard"></div>
+<div id="dash"></div>
 
 </div>
 
 <script>
+const URL="https://script.google.com/macros/s/AKfycbyxQCJfxLkcqSVEsSJ5VchiI85eOyEKMncD6l-SFTjSk6Q6y3DqFT-LF9aQpcRjFkVe/exec";
 
-let quiz = [];
-let current = 0;
-let score = 0;
-let timeLeft = 30;
-let timer;
-let studentName = "";
+let quiz=[],i=0,score=0,timer,t=30,teacherID="";
 
-// 🔗 PASTE YOUR GOOGLE SCRIPT URL HERE
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyxQCJfxLkcqSVEsSJ5VchiI85eOyEKMncD6l-SFTjSk6Q6y3DqFT-LF9aQpcRjFkVe/exec";
+// load teachers
+fetch(URL+"?teachers=true")
+.then(r=>r.json())
+.then(d=>{
+d.forEach(x=>{
+teacherSelect.innerHTML+=`<option value="${x.id}">${x.name}</option>`
+})
+})
 
-// 🚫 Anti-Cheat
-window.onbeforeunload = function() {
-  return "Are you sure? Your quiz will be submitted!";
-};
+// student
+function startQuiz(){
+let name=sname.value,sidv=sid.value,tid=teacherSelect.value;
 
-// START QUIZ
-function startQuiz() {
-  studentName = document.getElementById("studentName").value;
+fetch(URL+`?check=true&teacher=${tid}&sid=${sidv}`)
+.then(r=>r.json())
+.then(d=>{
+if(d.done){alert("Already attempted");return;}
 
-  if (studentName === "") {
-    alert("Enter your name first");
-    return;
-  }
+teacherID=tid;
+studentName=name;
+studentID=sidv;
 
-  document.getElementById("startBox").style.display = "none";
-  document.getElementById("quizBox").style.display = "block";
-
-  fetch(SCRIPT_URL)
-    .then(res => res.json())
-    .then(data => {
-      quiz = shuffle(data);
-      loadQuestion();
-    });
+fetch(URL+`?teacher=${tid}`)
+.then(r=>r.json())
+.then(q=>{quiz=q;next();});
+});
 }
 
-// SHUFFLE QUESTIONS
-function shuffle(array) {
-  return array.sort(() => Math.random() - 0.5);
+function next(){
+if(i>=quiz.length){end();return;}
+q.innerText=quiz[i].q;
+opts.innerHTML="";
+quiz[i].options.forEach((o,x)=>{
+opts.innerHTML+=`<button onclick="ans(${x})">${o}</button>`;
+});
+time();
 }
 
-// LOAD QUESTION
-function loadQuestion() {
-  if (current >= quiz.length) {
-    endQuiz();
-    return;
-  }
-
-  const q = quiz[current];
-  document.getElementById("question").innerText = q.q;
-
-  let optionsHTML = "";
-  q.options.forEach((opt, i) => {
-    optionsHTML += `<button onclick="checkAnswer(${i})">${opt}</button>`;
-  });
-
-  document.getElementById("options").innerHTML = optionsHTML;
-
-  startTimer();
+function time(){
+t=30;
+timer=setInterval(()=>{
+timerEl.innerText="Time: "+t;
+t--;
+if(t<0){clearInterval(timer);i++;next();}
+},1000);
 }
 
-// TIMER
-function startTimer() {
-  timeLeft = 30;
-
-  document.getElementById("timer").innerText =
-    "⏳ Time Left: " + timeLeft + " seconds";
-
-  timer = setInterval(() => {
-    timeLeft--;
-
-    document.getElementById("timer").innerText =
-      "⏳ Time Left: " + timeLeft + " seconds";
-
-    if (timeLeft <= 0) {
-      clearInterval(timer);
-      current++;
-      loadQuestion();
-    }
-  }, 1000);
+function ans(x){
+clearInterval(timer);
+if(x==quiz[i].answer)score++;
+i++;next();
 }
 
-// CHECK ANSWER
-function checkAnswer(selected) {
-  clearInterval(timer);
-
-  if (selected === quiz[current].answer) {
-    score++;
-  }
-
-  current++;
-  loadQuestion();
+function end(){
+quizBox.style.display="none";
+fetch(URL,{
+method:"POST",
+body:JSON.stringify({action:"result",teacher:teacherID,name:studentName,sid:studentID,score:score,total:quiz.length})
+});
+alert("Submitted");
 }
 
-// END QUIZ
-function endQuiz() {
-
-  document.getElementById("quizBox").style.display = "none";
-
-  document.querySelector(".container").innerHTML +=
-    `<h2>✅ ${studentName}, Score: ${score}/${quiz.length}</h2>`;
-
-  // SEND RESULT
-  fetch(SCRIPT_URL, {
-    method: "POST",
-    body: JSON.stringify({
-      name: studentName,
-      score: score,
-      total: quiz.length
-    })
-  });
+// teacher
+function login(){
+fetch(URL+`?login=true&id=${tid.value}&pass=${tpass.value}`)
+.then(r=>r.json())
+.then(d=>{
+if(d.success){teacherID=tid.value;panel();}
+else alert("Wrong login");
+});
 }
 
-// 🏆 LOAD LEADERBOARD
-function loadLeaderboard() {
-
-  fetch(SCRIPT_URL + "?leaderboard=true")
-    .then(res => res.json())
-    .then(data => {
-
-      let html = "<h3>🏆 Leaderboard</h3>";
-
-      data.sort((a,b) => b.score - a.score);
-
-      data.slice(0,10).forEach((row, i) => {
-        html += `<p>${i+1}. ${row.name} - ${row.score}/${row.total}</p>`;
-      });
-
-      document.getElementById("leaderboard").innerHTML = html;
-    });
+function panel(){
+dash.innerHTML=`
+<h4>Add Question</h4>
+<input id="q1"><br>
+<input id="o1"><input id="o2"><input id="o3"><input id="o4"><br>
+<input id="ans"><button onclick="add()">Add</button>
+<h4>Results</h4><div id="res"></div>`;
+loadRes();
 }
 
-  function viewTeacherResults() {
+function add(){
+fetch(URL,{
+method:"POST",
+body:JSON.stringify({action:"add",teacher:teacherID,q:q1.value,o1:o1.value,o2:o2.value,o3:o3.value,o4:o4.value,ans:ans.value})
+});
+}
 
-  let cls = document.getElementById("teacherClass").value;
-  let code = document.getElementById("teacherCode").value;
-
-  fetch(SCRIPT_URL + "?teacherView=true&class=" + cls + "&teacherCode=" + code)
-    .then(res => res.json())
-    .then(data => {
-
-      if (data.error) {
-        alert("Access Denied!");
-        return;
-      }
-
-      let html = "<h3>Results</h3>";
-
-      data.forEach(r => {
-        html += `<p>${r.name} (${r.studentID}) - ${r.score}/${r.total}</p>`;
-      });
-
-      document.getElementById("teacherResults").innerHTML = html;
-    });
+function loadRes(){
+fetch(URL+`?results=true&teacher=${teacherID}`)
+.then(r=>r.json())
+.then(d=>{
+let h="";
+d.forEach(x=>{
+h+=`<p>${x.name} (${x.id}) - ${x.score}/${x.total}</p>`;
+});
+res.innerHTML=h;
+});
 }
 </script>
-
 </body>
 </html>
