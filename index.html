@@ -203,7 +203,26 @@ function nextQ(){
   startTimer();
 }
 
-function startTimer(){
+ function startTimer(){
+
+  let timerEl = document.getElementById("timer"); // ✅ FIX
+
+  t = 30;
+  timerEl.innerText = "Time Left: " + t + "s";
+
+  timer = setInterval(()=>{
+    t--;
+    timerEl.innerText = "Time Left: " + t + "s";
+
+    if(t < 0){
+      clearInterval(timer);
+      i++;
+      nextQ();
+    }
+  },1000);
+}
+  
+/* function startTimer(){
   t=30;
   timer=setInterval(()=>{
     timerEl.innerText="Time: "+t;
@@ -219,7 +238,7 @@ function answer(x){
   clearInterval(timer);
   if(x===quiz[i].answer) score++;
   i++; nextQ();
-}
+} */
 
 function endQuiz(){
 
@@ -314,7 +333,29 @@ function loadClasses(){
 
 function addQ(){
 
-  fetch(URL,{
+  dash.innerHTML = `
+  <button onclick="logout()">Logout</button>
+
+  <h4>Select Class</h4>
+  <select id="classSelect"></select>
+
+  <h4>Add Question</h4>
+
+  <input id="q1" placeholder="Enter Question"><br>
+
+  <input id="o1" placeholder="Option 1">
+  <input id="o2" placeholder="Option 2"><br>
+  <input id="o3" placeholder="Option 3">
+  <input id="o4" placeholder="Option 4"><br>
+
+  <input id="ans" placeholder="Correct Answer (1-4)">
+  <button onclick="addQ()">Add Question</button>
+
+  <h4>Results</h4>
+  <div id="res"></div>
+`;
+
+/*  fetch(URL,{
     method:"POST",
     body: JSON.stringify({
       action:"add",
@@ -326,11 +367,35 @@ function addQ(){
       o3:o3.value,
       o4:o4.value,
       ans:ans.value
-    })
+    }) */
   }).then(()=> alert("Added"));
 }
 
-function loadResults(){
+  function loadResults(){
+
+  fetch(URL + `?results=true&teacher=${teacherID}&class=${currentClass}`)
+  .then(res => res.json())
+  .then(data => {
+
+    let html = "<h4>Results</h4>";
+
+    if(data.length === 0){
+      html += "<p>No results yet</p>";
+    }
+
+    data.forEach(r => {
+      html += `<p>
+        👤 ${r.name || "No Name"} 
+        (${r.id || "No ID"}) 
+        ➜ ${r.score || 0}/${r.total || 0}
+      </p>`;
+    });
+
+    document.getElementById("res").innerHTML = html;
+  });
+}
+  
+/*function loadResults(){
 
   fetch(URL + `?results=true&teacher=${teacherID}&class=${currentClass}`)
   .then(res => res.json())
@@ -343,7 +408,7 @@ function loadResults(){
 
     res.innerHTML = html;
   });
-}
+} */
 
 function logout(){
   teacherID="";
