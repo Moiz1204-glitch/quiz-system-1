@@ -4,28 +4,56 @@
 <title>School LMS</title>
 
 <style>
-body {font-family: Arial; background:#eef2f7; text-align:center; font-color:#ffffff;}
-.container {background:#1aaa91; padding:20px; width:420px; margin:auto; border-radius:10px;}
-button {padding:10px; margin:5px; width:80%; background:#3498db; color:#fff; border:none;}
+body {font-family: Arial; background:#eef2f7; text-align:center;}
+.container {background:#fff; padding:20px; width:420px; margin:auto; border-radius:10px;}
+
+button {padding:10px; margin:5px; width:80%; background:#3498db; color:#fff; border:none; cursor:pointer;}
 input, select {padding:10px; margin:5px; width:80%;}
+
+.tabs button {width:45%; background:#2c3e50;}
+.activeTab {background:#27ae60 !important;}
+
+#quizBox {display:none;}
+#teacherBox {display:none;}
+
 #timer {color:red; font-weight:bold;}
+
+/* LOADER */
+#loader {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.5);
+  color:#fff;
+  font-size:20px;
+  align-items:center;
+  justify-content:center;
+}
 </style>
 
 </head>
 
 <body>
 
+<div id="loader">⏳ Loading...</div>
+
 <div class="container">
 
-  <img src="https://upload.wikimedia.org/wikipedia/commons/5/57/The_Educator_Logo.png" alt="The Educators Logo" align:center; width="100"; height="100";>
-
-<h2 style="color:white;">The Educators Taxila Campus</h2>  
-
+  
 <h2>📘 LMS System</h2>
 
-<!-- STUDENT PANEL -->
+<!-- TABS -->
+<div class="tabs">
+<button id="studentTab" class="activeTab" onclick="showStudent()">Student</button>
+<button id="teacherTab" onclick="showTeacher()">Teacher</button>
+</div>
+
+<!-- ================= STUDENT PANEL ================= -->
 <div id="studentBox">
+
 <h3>Student Panel</h3>
+
 <input id="sname" placeholder="Name"><br>
 <input id="sid" placeholder="Roll No"><br>
 
@@ -34,156 +62,173 @@ input, select {padding:10px; margin:5px; width:80%;}
 </select><br>
 
 <button onclick="startQuiz()">Start Quiz</button>
+
 </div>
 
 <!-- QUIZ -->
-<div id="quizBox" style="display:none">
+<div id="quizBox">
 <h3 id="q"></h3>
 <div id="opts"></div>
 <h4 id="timer"></h4>
 </div>
 
-<hr>
+<!-- ================= TEACHER PANEL ================= -->
+<div id="teacherBox">
 
-<!-- TEACHER PANEL -->
-<h3>Teacher Panel</h3>
+<h3>Teacher Login</h3>
+
 <input id="tid" placeholder="Teacher ID"><br>
 <input id="tpass" placeholder="Password"><br>
+
 <button onclick="login()">Login</button>
 
 <div id="dash"></div>
 
 </div>
 
+</div>
+
 <script>
 
-  console.log("Loading teachers...");
-  
-const URL = "https://script.google.com/macros/s/AKfycbzq-B6iqe1-dxMGIjtVg8u6U0UxoaAfAAr6vEcLESnY0IWqOuKfbALThIUDLhWUSiNaRA/exec"; // 🔴 PUT YOUR APPS SCRIPT URL HERE
+const URL = "https://script.google.com/macros/s/AKfycbwAxLawhB9KW_B6XDjrHre7aVzSqq75EEBvExBAjKKjCKE-UHCGK2Fsz6GFBqRAraLFVA/exec
+";
 
-let quiz = [], i = 0, score = 0;
-let timer, t = 30;
-let teacherID = "", studentName = "", studentID = "";
+// GLOBAL
+let quiz=[], i=0, score=0;
+let timer, t=30;
+let teacherID="", studentName="", studentID="", currentClass="";
 
-// 🔹 LOAD TEACHERS DROPDOWN
-fetch(URL + "?teachers=true")
+// LOADER CONTROL
+function showLoader(){ document.getElementById("loader").style.display="flex"; }
+function hideLoader(){ document.getElementById("loader").style.display="none"; }
+
+// ================= TABS =================
+
+function showStudent(){
+  studentBox.style.display="block";
+  teacherBox.style.display="none";
+  studentTab.classList.add("activeTab");
+  teacherTab.classList.remove("activeTab");
+}
+
+function showTeacher(){
+  studentBox.style.display="none";
+  teacherBox.style.display="block";
+  teacherTab.classList.add("activeTab");
+  studentTab.classList.remove("activeTab");
+}
+
+// ================= LOAD CLASSES =================
+
+showLoader();
+
+fetch(URL + "?allClasses=true")
 .then(res => res.json())
 .then(data => {
   let select = document.getElementById("teacherSelect");
-  data.forEach(t => {
+
+  data.forEach(x => {
     let opt = document.createElement("option");
-    opt.value = t.id;
-    opt.text = t.name;
+    opt.value = x.teacher + "|" + x.class;
+    opt.text = x.class + " (" + x.teacher + ")";
     select.appendChild(opt);
   });
+
+  hideLoader();
 });
 
 // ================= STUDENT =================
 
-function startQuiz() {
+function startQuiz(){
 
-  let name = document.getElementById("sname").value;
-  let sidVal = document.getElementById("sid").value;
-  let tidVal = document.getElementById("teacherSelect").value;
+  let name = sname.value;
+  let sidVal = sid.value;
+  let val = teacherSelect.value;
 
-  if(name === "" || sidVal === "" || tidVal === ""){
+  if(!name || !sidVal || !val){
     alert("Fill all fields");
     return;
   }
 
-  fetch(URL + "?check=true&teacher=" + tidVal + "&sid=" + sidVal)
+  let parts = val.split("|");
+  teacherID = parts[0];
+  currentClass = parts[1];
+
+  studentName = name;
+  studentID = sidVal;
+
+  showLoader();
+
+  fetch(URL + `?check=true&teacher=${teacherID}&class=${currentClass}&sid=${studentID}`)
   .then(res => res.json())
   .then(data => {
 
     if(data.done){
-      alert("You already attempted this quiz");
+      hideLoader();
+      alert("Already attempted");
       return;
     }
 
-    teacherID = tidVal;
-    studentName = name;
-    studentID = sidVal;
-
-    document.getElementById("studentBox").style.display = "none";
-    document.getElementById("quizBox").style.display = "block";
-
-    fetch(URL + "?teacher=" + teacherID)
+    fetch(URL + `?teacher=${teacherID}&class=${currentClass}`)
     .then(res => res.json())
     .then(q => {
+
+      hideLoader();
+
       quiz = q;
-      i = 0;
-      score = 0;
-      nextQuestion();
+      i=0; score=0;
+
+      studentBox.style.display="none";
+      quizBox.style.display="block";
+
+      nextQ();
     });
 
   });
 }
 
-// LOAD QUESTION
-function nextQuestion() {
+function nextQ(){
 
-  if(i >= quiz.length){
-    endQuiz();
-    return;
-  }
+  if(i>=quiz.length){ endQuiz(); return; }
 
-  document.getElementById("q").innerText = quiz[i].q;
+  q.innerText = quiz[i].q;
+  opts.innerHTML="";
 
-  let optDiv = document.getElementById("opts");
-  optDiv.innerHTML = "";
-
-  quiz[i].options.forEach((opt, index) => {
-    let btn = document.createElement("button");
-    btn.innerText = opt;
-    btn.onclick = () => answer(index);
-    optDiv.appendChild(btn);
+  quiz[i].options.forEach((o,index)=>{
+    opts.innerHTML += `<button onclick="answer(${index})">${o}</button>`;
   });
 
   startTimer();
 }
 
-// TIMER
 function startTimer(){
-  t = 30;
-  let timerEl = document.getElementById("timer");
-
-  timerEl.innerText = "Time Left: " + t;
-
-  timer = setInterval(() => {
+  t=30;
+  timer=setInterval(()=>{
+    timerEl.innerText="Time: "+t;
     t--;
-    timerEl.innerText = "Time Left: " + t;
-
-    if(t < 0){
+    if(t<0){
       clearInterval(timer);
-      i++;
-      nextQuestion();
+      i++; nextQ();
     }
-  }, 1000);
+  },1000);
 }
 
-// ANSWER
-function answer(choice){
+function answer(x){
   clearInterval(timer);
-
-  if(choice === quiz[i].answer){
-    score++;
-  }
-
-  i++;
-  nextQuestion();
+  if(x===quiz[i].answer) score++;
+  i++; nextQ();
 }
 
-// END QUIZ
 function endQuiz(){
 
-  document.getElementById("quizBox").innerHTML =
-    `<h2>Submitted</h2><h3>${studentName}, Score: ${score}/${quiz.length}</h3>`;
+  quizBox.innerHTML = `<h2>Submitted</h2><h3>${studentName}: ${score}/${quiz.length}</h3>`;
 
   fetch(URL,{
     method:"POST",
     body: JSON.stringify({
       action:"result",
       teacher: teacherID,
+      class: currentClass,
       name: studentName,
       sid: studentID,
       score: score,
@@ -196,17 +241,21 @@ function endQuiz(){
 
 function login(){
 
-  let id = document.getElementById("tid").value;
-  let pass = document.getElementById("tpass").value;
+  let id = tid.value;
+  let pass = tpass.value;
 
-  if(id === "" || pass === ""){
-    alert("Enter login details");
+  if(!id || !pass){
+    alert("Enter login");
     return;
   }
 
-  fetch(URL + "?login=true&id=" + id + "&pass=" + pass)
+  showLoader();
+
+  fetch(URL + `?login=true&id=${id}&pass=${pass}`)
   .then(res => res.json())
   .then(data => {
+
+    hideLoader();
 
     if(data.success){
       teacherID = id;
@@ -214,31 +263,53 @@ function login(){
     } else {
       alert("Wrong login");
     }
-
   });
 }
 
-// DASHBOARD
 function loadDashboard(){
 
-  document.getElementById("dash").innerHTML = `
+  dash.innerHTML = `
+    <button onclick="logout()">Logout</button>
+
+    <h4>Select Class</h4>
+    <select id="classSelect"></select>
+
     <h4>Add Question</h4>
-    <input id="q1" placeholder="Question"><br>
-    <input id="o1" placeholder="Option1">
-    <input id="o2" placeholder="Option2">
-    <input id="o3" placeholder="Option3">
-    <input id="o4" placeholder="Option4"><br>
-    <input id="ans" placeholder="Correct (1-4)">
+    <input id="q1"><br>
+    <input id="o1"><input id="o2"><input id="o3"><input id="o4"><br>
+    <input id="ans">
     <button onclick="addQ()">Add</button>
 
     <h4>Results</h4>
     <div id="res"></div>
   `;
 
-  loadResults();
+  loadClasses();
 }
 
-// ADD QUESTION
+function loadClasses(){
+
+  fetch(URL + `?getClasses=true&teacher=${teacherID}`)
+  .then(res => res.json())
+  .then(data => {
+
+    let select = document.getElementById("classSelect");
+    select.innerHTML="";
+
+    data.forEach(c=>{
+      select.innerHTML += `<option value="${c}">${c}</option>`;
+    });
+
+    select.onchange = ()=>{
+      currentClass = select.value;
+      loadResults();
+    };
+
+    currentClass = data[0];
+    loadResults();
+  });
+}
+
 function addQ(){
 
   fetch(URL,{
@@ -246,33 +317,36 @@ function addQ(){
     body: JSON.stringify({
       action:"add",
       teacher: teacherID,
-      q: document.getElementById("q1").value,
-      o1: document.getElementById("o1").value,
-      o2: document.getElementById("o2").value,
-      o3: document.getElementById("o3").value,
-      o4: document.getElementById("o4").value,
-      ans: document.getElementById("ans").value
+      class: currentClass,
+      q: q1.value,
+      o1:o1.value,
+      o2:o2.value,
+      o3:o3.value,
+      o4:o4.value,
+      ans:ans.value
     })
-  }).then(() => {
-    alert("Question Added");
-  });
+  }).then(()=> alert("Added"));
 }
 
-// LOAD RESULTS
 function loadResults(){
 
-  fetch(URL + "?results=true&teacher=" + teacherID)
+  fetch(URL + `?results=true&teacher=${teacherID}&class=${currentClass}`)
   .then(res => res.json())
   .then(data => {
 
-    let html = "";
-
-    data.forEach(r => {
-      html += `<p>${r.name} (${r.id}) - ${r.score}/${r.total}</p>`;
+    let html="";
+    data.forEach(r=>{
+      html += `<p>${r.name} (${r.id}) → ${r.score}/${r.total}</p>`;
     });
 
-    document.getElementById("res").innerHTML = html;
+    res.innerHTML = html;
   });
+}
+
+function logout(){
+  teacherID="";
+  dash.innerHTML="";
+  showStudent();
 }
 
 </script>
